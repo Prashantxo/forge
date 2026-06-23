@@ -1,0 +1,39 @@
+# Forge
+
+> Production-grade AI coding toolkit for Claude Code. 7 slash commands, 9 skills, 3 agents. Model-adaptive — works with any LLM.
+
+## Install
+
+```bash
+npx claudepluginhub install forge
+claude plugin install Prashantxo/forge
+```
+
+## Commands
+
+- `/forge:review` — Code + security review on current diff or PR
+- `/forge:secure` — OWASP Top 10 security audit
+- `/forge:arch` — Architecture review or design
+- `/forge:tdd` — TDD cycle — failing tests first
+- `/forge:docs` — Generate documentation
+- `/forge:refine` — Simplify changed code without behavior change
+- `/forge:eval` — Define or run evals for AI features
+- `/forge:standards` — Coding standards review
+
+## Skills
+
+`review` `secure` `arch` `tdd` `agentic` `docs` `refine` `eval` `standards`
+
+## Agents
+
+- `forge-reviewer` — Multi-dimensional code review
+- `forge-architect` — Architecture diagrams, ADRs, verdicts
+- `forge-analyst` — Deep research, adversarially verified
+
+## Platform Support
+
+Claude Code, OpenAI Codex, Gemini CLI, Cursor
+
+## Source
+
+https://github.com/Prashantxo/forge

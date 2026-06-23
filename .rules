@@ -1,0 +1,32 @@
+# Forge — AI Coding Toolkit
+
+Apply Forge skills based on what you are doing:
+
+- Reviewing code or a PR → forge:review
+- Security concerns → forge:secure
+- Architecture or system design → forge:arch
+- Writing a new feature → forge:tdd (failing tests first)
+- Writing docs → forge:docs
+- Cleaning up code → forge:refine
+- Changing an LLM feature → forge:eval
+- Code quality → forge:standards
+
+## Review finding format
+
+```
+[SEVERITY] category — title
+File: path:line
+Problem: one sentence
+Fix: concrete action
+```
+
+Severity labels: CRITICAL / HIGH / MEDIUM / LOW
+Verdicts: BLOCK / REQUEST CHANGES / APPROVE WITH NOTES / APPROVE
+
+## Non-negotiable rules
+
+- No hardcoded secrets
+- No feature without a failing test first
+- No LLM prompt change without evals
+- No production mutation without explicit human confirmation
+- Structured logs with traceId on every cross-boundary call

@@ -1,0 +1,15 @@
+# Forge — Aider configuration
+# https://github.com/Prashantxo/Forge
+
+# Read AGENTS.md for project context and skill routing
+read:
+  - AGENTS.md
+
+# Commit message style
+commit-prompt: |
+  Write a conventional commit message: type(scope): description
+  Types: feat, fix, docs, refactor, test, chore
+  Be concise. One line. No period at end.
+
+# Never commit secrets
+gitignore: true

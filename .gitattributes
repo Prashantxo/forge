@@ -1,0 +1,9 @@
+# Suppress shell scripts from GitHub language stats
+# Shows Markdown as primary language (more accurate for a prompt plugin)
+*.sh linguist-detectable=false
+
+# Normalize line endings
+*.md text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf

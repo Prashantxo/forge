@@ -1,0 +1,7 @@
+interface:
+  display_name: "Forge Review"
+  short_description: "Multi-dimensional code review — correctness, security, performance, tests"
+  brand_color: "#F97316"
+  default_prompt: "Use $review to run a full code review on current changes."
+policy:
+  allow_implicit_invocation: true

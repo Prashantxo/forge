@@ -1,0 +1,7 @@
+interface:
+  display_name: "Forge Eval"
+  short_description: "Eval-driven development — define evals before coding, pass@k metrics, regression tracking"
+  brand_color: "#EC4899"
+  default_prompt: "Use $eval to define, run, and track evals for AI features and agent changes."
+policy:
+  allow_implicit_invocation: true

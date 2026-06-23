@@ -1,0 +1,7 @@
+interface:
+  display_name: "Forge Arch"
+  short_description: "Architecture review and design — diagrams, ADRs, greenlight verdict"
+  brand_color: "#8B5CF6"
+  default_prompt: "Use $arch to review or design system architecture."
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,7 @@
+interface:
+  display_name: "Forge Refine"
+  short_description: "Code simplification — remove duplication, improve naming, no behavior change"
+  brand_color: "#F59E0B"
+  default_prompt: "Use $refine to simplify changed code without altering behavior."
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,7 @@
+interface:
+  display_name: "Forge TDD"
+  short_description: "Test-driven development — failing tests first, minimum implementation, refactor"
+  brand_color: "#22C55E"
+  default_prompt: "Use $tdd to start a TDD cycle. Writes failing tests before implementation."
+policy:
+  allow_implicit_invocation: true

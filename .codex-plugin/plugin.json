@@ -1,0 +1,23 @@
+{
+  "name": "forge",
+  "version": "1.0.0",
+  "description": "Forge — model-adaptive AI coding toolkit. Code review, security, TDD, architecture, docs, and evals. Same output quality across Claude, GPT-4o, and Gemini.",
+  "author": {
+    "name": "Prashantxo",
+    "url": "https://github.com/Prashantxo/forge"
+  },
+  "license": "MIT",
+  "keywords": ["forge", "code-review", "security", "tdd", "architecture", "evals", "developer-tools"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Forge",
+    "shortDescription": "Model-adaptive AI coding toolkit — review, security, TDD, arch, docs, evals.",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "defaultPrompt": [
+      "Use forge:tdd to write failing tests before implementing any feature.",
+      "Use forge:review to audit code before merging.",
+      "Use forge:secure to scan for OWASP Top 10 vulnerabilities."
+    ]
+  }
+}

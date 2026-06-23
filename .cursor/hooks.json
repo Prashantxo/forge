@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "bash hooks/scripts/bash-safety-check.sh",
+        "event": "beforeShellExecution",
+        "description": "Block destructive commands (rm -rf /, force push to main)"
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "bash hooks/scripts/post-write-validate.sh",
+        "event": "afterFileEdit",
+        "description": "Warn when secrets detected in written files"
+      }
+    ]
+  }
+}

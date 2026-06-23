@@ -1,0 +1,7 @@
+interface:
+  display_name: "Forge Standards"
+  short_description: "Cross-project coding standards — naming, typing, immutability, DRY, YAGNI, readability"
+  brand_color: "#6B7280"
+  default_prompt: "Use $standards for baseline coding conventions and code quality review."
+policy:
+  allow_implicit_invocation: true

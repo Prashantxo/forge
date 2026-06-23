@@ -1,0 +1,307 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Gate 1: JSON / YAML validity ────────────────────────────
+  validate-json:
+    name: Validate JSON & YAML
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate JSON files
+        run: |
+          FAILED=0
+          while IFS= read -r -d '' f; do
+            python3 -m json.tool "$f" > /dev/null 2>&1 \
+              && echo "  OK  $f" \
+              || { echo "FAIL  $f — invalid JSON"; FAILED=1; }
+          done < <(find . -name "*.json" -not -path "*/.git/*" -not -path "*/node_modules/*" -print0)
+          [ $FAILED -eq 0 ] || exit 1
+
+      - name: Validate YAML files
+        run: |
+          FAILED=0
+          while IFS= read -r -d '' f; do
+            python3 -c "import yaml,sys; yaml.safe_load(sys.stdin)" < "$f" 2>/dev/null \
+              && echo "  OK  $f" \
+              || { echo "FAIL  $f — invalid YAML"; FAILED=1; }
+          done < <(find . \( -name "*.yml" -o -name "*.yaml" \) -not -path "*/.git/*" -not -path "*/node_modules/*" -print0)
+          [ $FAILED -eq 0 ] || exit 1
+
+  # ── Gate 2: Security scan (runs in parallel with Gate 1) ────
+  security-check:
+    name: Security checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No hardcoded secrets
+        run: |
+          if grep -rqE \
+            "(sk-[a-zA-Z0-9]{20,}|AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{10,}|AIza[0-9A-Za-z_-]{35})" \
+            --include="*.json" --include="*.md" --include="*.sh" \
+            --include="*.yaml" --include="*.yml" --include="*.txt" \
+            --exclude-dir=".git" --exclude-dir=".claude" .; then
+            echo "FAIL: Hardcoded secret pattern found"
+            exit 1
+          fi
+          echo "No hardcoded secrets."
+
+      - name: Hook scripts have shebangs
+        run: |
+          FAILED=0
+          for f in hooks/scripts/*.sh .kiro/hooks/*.sh; do
+            [ -f "$f" ] || continue
+            head -1 "$f" | grep -q "^#!" \
+              && echo "  OK  $f" \
+              || { echo "FAIL  $f — missing shebang"; FAILED=1; }
+          done
+          [ $FAILED -eq 0 ] || exit 1
+
+      - name: Hook scripts not world-writable
+        run: |
+          FAILED=0
+          for f in hooks/scripts/*.sh .kiro/hooks/*.sh .clinerules/hooks/*; do
+            [ -f "$f" ] || continue
+            PERMS=$(stat -c "%a" "$f" 2>/dev/null || echo "unknown")
+            if [ "$PERMS" != "unknown" ] && [ $(( 0${PERMS} & 002 )) -ne 0 ]; then
+              echo "FAIL  $f — world-writable ($PERMS)"
+              FAILED=1
+            else
+              echo "  OK  $f ($PERMS)"
+            fi
+          done
+          [ $FAILED -eq 0 ] || exit 1
+
+  # ── Gate 3: Structural tests (needs Gate 1 to pass) ─────────
+  test-structure:
+    name: Test repo structure
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [validate-json]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run structural tests
+        run: bash tests/validate-structure.sh
+
+  # ── Gate 4: Platform file checks (needs Gate 1) ─────────────
+  validate-platforms:
+    name: Validate platform files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [validate-json]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Claude Code
+        run: |
+          [ -f ".claude-plugin/plugin.json" ] || { echo "MISSING: .claude-plugin/plugin.json"; exit 1; }
+          python3 -c "
+          import json
+          p = json.load(open('.claude-plugin/plugin.json'))
+          assert 'name' in p, 'Missing name'
+          assert 'version' in p, 'Missing version'
+          assert 'skills' in p, 'Missing skills'
+          assert 'commands' in p, 'Missing commands'
+          print('  OK  Claude Code manifest valid')
+          "
+
+      - name: OpenAI Codex
+        run: |
+          [ -f ".codex-plugin/plugin.json" ] || { echo "MISSING: .codex-plugin/plugin.json"; exit 1; }
+          [ -f "AGENTS.md" ] || { echo "MISSING: AGENTS.md"; exit 1; }
+          echo "  OK  Codex"
+
+      - name: Gemini CLI
+        run: |
+          [ -f ".gemini/GEMINI.md" ] || { echo "MISSING: .gemini/GEMINI.md"; exit 1; }
+          echo "  OK  Gemini CLI"
+
+      - name: Cursor
+        run: |
+          [ -f ".cursor/hooks.json" ] || { echo "MISSING: .cursor/hooks.json"; exit 1; }
+          echo "  OK  Cursor"
+
+      - name: Windsurf
+        run: |
+          [ -f ".windsurfrules" ] || { echo "MISSING: .windsurfrules"; exit 1; }
+          [ -f ".windsurf/rules/forge.md" ] || { echo "MISSING: .windsurf/rules/forge.md"; exit 1; }
+          grep -q "trigger:" .windsurf/rules/forge.md || { echo "MISSING trigger: in .windsurf/rules/forge.md"; exit 1; }
+          echo "  OK  Windsurf"
+
+      - name: Zed
+        run: |
+          [ -f ".rules" ] || { echo "MISSING: .rules"; exit 1; }
+          echo "  OK  Zed"
+
+      - name: Kiro
+        run: |
+          [ -f ".kiro/steering/forge.md" ] || { echo "MISSING: .kiro/steering/forge.md"; exit 1; }
+          grep -q "inclusion:" .kiro/steering/forge.md || { echo "MISSING inclusion: in .kiro/steering/forge.md"; exit 1; }
+          [ -f ".kiro/hooks/pre-tool-use.sh" ] || { echo "MISSING: .kiro/hooks/pre-tool-use.sh"; exit 1; }
+          [ -f ".kiro/hooks/post-tool-use.sh" ] || { echo "MISSING: .kiro/hooks/post-tool-use.sh"; exit 1; }
+          echo "  OK  Kiro"
+
+      - name: Cline
+        run: |
+          [ -f ".clinerules/forge.md" ] || { echo "MISSING: .clinerules/forge.md"; exit 1; }
+          [ -f ".clinerules/hooks/PreToolUse" ] || { echo "MISSING: .clinerules/hooks/PreToolUse"; exit 1; }
+          [ -f ".clinerules/hooks/PostToolUse" ] || { echo "MISSING: .clinerules/hooks/PostToolUse"; exit 1; }
+          head -1 .clinerules/hooks/PreToolUse | grep -q "^#!" || { echo "MISSING shebang in PreToolUse"; exit 1; }
+          echo "  OK  Cline"
+
+      - name: Aider
+        run: |
+          [ -f ".aider.conf.yml" ] || { echo "MISSING: .aider.conf.yml"; exit 1; }
+          echo "  OK  Aider"
+
+  # ── Gate 5: Skills / Commands / Agents (needs Gate 1) ───────
+  validate-content:
+    name: Validate skills, commands, agents
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [validate-json]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Skills — SKILL.md and openai.yaml present
+        run: |
+          FAILED=0
+          for skill in review secure arch tdd agentic docs refine eval standards; do
+            [ -f "skills/$skill/SKILL.md" ] \
+              && echo "  OK  skills/$skill/SKILL.md" \
+              || { echo "MISS  skills/$skill/SKILL.md"; FAILED=1; }
+            [ -f "skills/$skill/agents/openai.yaml" ] \
+              && echo "  OK  skills/$skill/agents/openai.yaml" \
+              || { echo "MISS  skills/$skill/agents/openai.yaml"; FAILED=1; }
+          done
+          [ $FAILED -eq 0 ] || exit 1
+
+      - name: Skills — openai.yaml has interface and policy blocks
+        run: |
+          FAILED=0
+          for skill in review secure arch tdd agentic docs refine eval standards; do
+            f="skills/$skill/agents/openai.yaml"
+            grep -q "interface:" "$f" && grep -q "policy:" "$f" \
+              && echo "  OK  $f" \
+              || { echo "FAIL  $f — missing interface: or policy:"; FAILED=1; }
+          done
+          [ $FAILED -eq 0 ] || exit 1
+
+      - name: Skills — SKILL.md has required frontmatter
+        run: |
+          FAILED=0
+          for skill in review secure arch tdd agentic docs refine eval standards; do
+            f="skills/$skill/SKILL.md"
+            grep -q "^name:" "$f" && grep -q "^description:" "$f" && grep -q "^allowed-tools:" "$f" \
+              && echo "  OK  $f" \
+              || { echo "FAIL  $f — missing name/description/allowed-tools"; FAILED=1; }
+          done
+          [ $FAILED -eq 0 ] || exit 1
+
+      - name: Commands — all 8 present with frontmatter
+        run: |
+          FAILED=0
+          for cmd in review secure arch tdd docs refine eval standards; do
+            f="commands/$cmd.md"
+            [ -f "$f" ] || { echo "MISS  $f"; FAILED=1; continue; }
+            grep -q "^name:" "$f" && grep -q "^description:" "$f" \
+              && echo "  OK  $f" \
+              || { echo "FAIL  $f — missing frontmatter"; FAILED=1; }
+          done
+          [ $FAILED -eq 0 ] || exit 1
+
+      - name: Agents — all 3 present
+        run: |
+          FAILED=0
+          for agent in forge-reviewer forge-architect forge-analyst; do
+            [ -f "agents/$agent.md" ] \
+              && echo "  OK  agents/$agent.md" \
+              || { echo "MISS  agents/$agent.md"; FAILED=1; }
+          done
+          [ $FAILED -eq 0 ] || exit 1
+
+      - name: Verdict enum consistent across review files
+        run: |
+          VERDICT="BLOCK | REQUEST CHANGES | APPROVE WITH NOTES | APPROVE"
+          FAILED=0
+          for f in "skills/review/SKILL.md" "commands/review.md" "agents/forge-reviewer.md"; do
+            grep -q "$VERDICT" "$f" \
+              && echo "  OK  $f" \
+              || { echo "FAIL  $f — verdict enum missing or inconsistent"; FAILED=1; }
+          done
+          [ $FAILED -eq 0 ] || exit 1
+
+  # ── Gate 6: Claude plugin validate (best-effort, NOT in ci-gate) ─
+  # Intentionally excluded from ci-gate: `claude plugin validate` requires
+  # interactive auth and may fail in headless CI. Failures are visible in the
+  # Actions UI but do not block merge. Run locally before releasing.
+  validate-claude-plugin:
+    name: Validate Claude Code plugin manifest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [validate-json]
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Claude Code CLI
+        id: install
+        run: |
+          npm install -g @anthropic-ai/claude-code 2>&1 | tail -5
+          claude --version && echo "installed=true" >> $GITHUB_OUTPUT || echo "installed=false" >> $GITHUB_OUTPUT
+
+      - name: Validate plugin manifest
+        if: steps.install.outputs.installed == 'true'
+        run: claude plugin validate .
+
+  # ── Final gate: all required checks passed ───────────────────
+  ci-gate:
+    name: CI gate (all required checks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs:
+      - validate-json
+      - security-check
+      - test-structure
+      - validate-platforms
+      - validate-content
+    if: always()
+    steps:
+      - name: Check all required jobs passed
+        run: |
+          FAILED=0
+          RESULTS=(
+            "validate-json=${{ needs.validate-json.result }}"
+            "security-check=${{ needs.security-check.result }}"
+            "test-structure=${{ needs.test-structure.result }}"
+            "validate-platforms=${{ needs.validate-platforms.result }}"
+            "validate-content=${{ needs.validate-content.result }}"
+          )
+          for r in "${RESULTS[@]}"; do
+            name="${r%%=*}"
+            result="${r##*=}"
+            if [ "$result" = "success" ]; then
+              echo "  OK  $name"
+            else
+              echo "FAIL  $name ($result)"
+              FAILED=1
+            fi
+          done
+          [ $FAILED -eq 0 ] || { echo ""; echo "CI gate FAILED — see failing jobs above"; exit 1; }
+          echo ""
+          echo "All required checks passed."

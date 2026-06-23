@@ -1,0 +1,7 @@
+interface:
+  display_name: "Forge Secure"
+  short_description: "Security audit — OWASP Top 10, auth, secrets, injection, crypto"
+  brand_color: "#EF4444"
+  default_prompt: "Use $secure to audit code for security vulnerabilities."
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,33 @@
+# Forge — AI Coding Toolkit
+
+Forge is active. Apply these skills based on context:
+
+- Code review or PR → forge:review (correctness, security, performance, types, tests, standards)
+- Security audit → forge:secure (OWASP Top 10, secrets, supply chain)
+- Architecture → forge:arch (scalability, reliability, observability, security, ops)
+- New feature → forge:tdd (failing tests first, stop for approval, then implement)
+- Documentation → forge:docs (README, API ref, runbook)
+- Cleanup → forge:refine (simplify, no behavior change)
+- AI features → forge:eval (define pass/fail before touching prompts)
+- Code quality → forge:standards (naming, typing, error handling, observability)
+
+## Output format
+
+Every review finding uses:
+```
+[SEVERITY] category — title
+File: path:line
+Problem: one sentence
+Fix: concrete action
+```
+
+Severity: CRITICAL / HIGH / MEDIUM / LOW
+Verdict: BLOCK / REQUEST CHANGES / APPROVE WITH NOTES / APPROVE
+
+## Principles
+
+- Tests before code
+- Evals before LLM changes
+- Plan before implementation
+- No hardcoded secrets
+- Structured logs with trace IDs on all cross-boundary calls
